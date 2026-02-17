@@ -498,16 +498,16 @@ with st.spinner("正在计算..."):
                        f'τ', fontsize=10, color='indigo',
                        fontweight='bold', zorder=12, ha='center', va='center')
         
-        ax.set_title('磁场可视化')
-        ax.set_xlabel('X轴 (m)')
-        ax.set_ylabel('Y轴 (m)')
+        ax.set_title('Magnetic Field Visualization')
+        ax.set_xlabel('X Axis (m)')
+        ax.set_ylabel('Y Axis (m)')
         ax.axis('equal')  # 保证X轴和Y轴比例相同，图形不变形
         ax.set_xlim(x_range)
         ax.set_ylim(y_range)
         
         # 添加颜色条
         cbar = plt.colorbar(Q, ax=ax, shrink=0.8)
-        cbar.set_label('log10(B) 相对磁感应强度', rotation=270, labelpad=25)
+        cbar.set_label('log10(B) Relative Magnetic Induction', rotation=270, labelpad=25)
         # 设置颜色条刻度为对数空间的相对位置
         cbar.set_ticks([0, 0.25, 0.5, 0.75, 1.0])
         # 计算对应实际磁感应强度值的标签
