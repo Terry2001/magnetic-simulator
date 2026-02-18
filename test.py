@@ -61,30 +61,23 @@ enable_drag = st.sidebar.checkbox("启用拖动模式", value=True, help="启用
 # 磁铁数量
 num_magnets = st.sidebar.number_input("磁铁数量", min_value=1, max_value=10, value=1, step=1)
 
+# 初始化 session_state 用于保存磁铁位置
+for i in range(10):
+    for axis in ['x', 'y', 'z']:
+        key = f"magnet_{i}_{axis}"
+        if key not in st.session_state:
+            st.session_state[key] = 0.0
+
 # 初始化磁铁列表
 magnets = []
 
 # 动态生成磁铁输入
 for i in range(num_magnets):
     st.sidebar.subheader(f"磁铁 {i+1}")
-    
-    # 默认坐标值（全部在原点）
-    default_coords = [
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0]
-    ]
 
     # 默认电压（29.4V 对应原 Pm = 0.5695312497）
     default_U = [29.4, 29.4, 29.4, 29.4, 29.4, 29.4, 29.4, 29.4, 29.4, 29.4]
-    
+
     # 默认方向向量（全部向右，即X轴正方向）
     default_vectors = [
         [1.0, 0.0, 0.0],
@@ -98,26 +91,30 @@ for i in range(num_magnets):
         [1.0, 0.0, 0.0],
         [1.0, 0.0, 0.0]
     ]
-    
-    coord_default = default_coords[i] if i < len(default_coords) else [0.0, 0.0, 0.0]
+
     U_default = default_U[i] if i < len(default_U) else 29.4
     vector_default = default_vectors[i] if i < len(default_vectors) else [0.0, 1.0, 0.0]
-    
+
     # 根据是否启用拖动模式选择输入方式
     if enable_drag:
         # 拖动模式：使用滑块
         coord = [
-            st.sidebar.slider(f"X坐标/m", min_value=-0.1, max_value=0.1, value=float(coord_default[0]), step=0.001, format="%.3f", key=f"coord_x_{i}"),
-            st.sidebar.slider(f"Y坐标/m", min_value=-0.1, max_value=0.1, value=float(coord_default[1]), step=0.001, format="%.3f", key=f"coord_y_{i}"),
-            st.sidebar.slider(f"Z坐标/m", min_value=-0.1, max_value=0.1, value=float(coord_default[2]), step=0.001, format="%.3f", key=f"coord_z_{i}")
+            st.sidebar.slider(f"X坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state[f"magnet_{i}_x"]), step=0.001, format="%.3f", key=f"coord_x_{i}"),
+            st.sidebar.slider(f"Y坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state[f"magnet_{i}_y"]), step=0.001, format="%.3f", key=f"coord_y_{i}"),
+            st.sidebar.slider(f"Z坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state[f"magnet_{i}_z"]), step=0.001, format="%.3f", key=f"coord_z_{i}")
         ]
     else:
         # 默认模式：使用输入框
         coord = [
-            st.sidebar.number_input(f"X坐标/m", value=coord_default[0], format="%.4f", key=f"coord_x_{i}"),
-            st.sidebar.number_input(f"Y坐标/m", value=coord_default[1], format="%.4f", key=f"coord_y_{i}"),
-            st.sidebar.number_input(f"Z坐标/m", value=coord_default[2], format="%.4f", key=f"coord_z_{i}")
+            st.sidebar.number_input(f"X坐标/m", value=float(st.session_state[f"magnet_{i}_x"]), format="%.4f", key=f"coord_x_{i}"),
+            st.sidebar.number_input(f"Y坐标/m", value=float(st.session_state[f"magnet_{i}_y"]), format="%.4f", key=f"coord_y_{i}"),
+            st.sidebar.number_input(f"Z坐标/m", value=float(st.session_state[f"magnet_{i}_z"]), format="%.4f", key=f"coord_z_{i}")
         ]
+
+    # 保存当前坐标到 session_state
+    st.session_state[f"magnet_{i}_x"] = coord[0]
+    st.session_state[f"magnet_{i}_y"] = coord[1]
+    st.session_state[f"magnet_{i}_z"] = coord[2]
 
     st.sidebar.markdown(f"**磁铁{i + 1}强度（默认为钕磁铁）**")
     U_input = st.sidebar.number_input(f"磁铁{i + 1} 等效输入电压/mV", value=U_default, format="%.1f", key=f"U_{i}")
@@ -270,19 +267,30 @@ st.sidebar.header("试探磁铁设置")
 # 复选框：在图中显示试探磁铁受力
 show_force = st.sidebar.checkbox("在图中显示试探磁铁受力", value=False, key="show_force_checkbox")
 
+# 初始化试探磁铁位置的 session_state
+for axis, default_val in [('x', 0.05), ('y', 0.0), ('z', 0.0)]:
+    key = f"test_magnet_{axis}"
+    if key not in st.session_state:
+        st.session_state[key] = default_val
+
 # 试探磁铁位置（根据是否启用拖动模式选择输入方式）
 if enable_drag:
     test_magnet_pos = [
-        st.sidebar.slider("试探磁铁 X坐标/m", min_value=-0.1, max_value=0.1, value=0.05, step=0.001, format="%.3f", key="test_x"),
-        st.sidebar.slider("试探磁铁 Y坐标/m", min_value=-0.1, max_value=0.1, value=0.0, step=0.001, format="%.3f", key="test_y"),
-        st.sidebar.slider("试探磁铁 Z坐标/m", min_value=-0.1, max_value=0.1, value=0.0, step=0.001, format="%.3f", key="test_z")
+        st.sidebar.slider("试探磁铁 X坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_x"]), step=0.001, format="%.3f", key="test_x"),
+        st.sidebar.slider("试探磁铁 Y坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_y"]), step=0.001, format="%.3f", key="test_y"),
+        st.sidebar.slider("试探磁铁 Z坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_z"]), step=0.001, format="%.3f", key="test_z")
     ]
 else:
     test_magnet_pos = [
-        st.sidebar.number_input("试探磁铁 X坐标/m", value=0.05, format="%.4f", key="test_x"),
-        st.sidebar.number_input("试探磁铁 Y坐标/m", value=0.0, format="%.4f", key="test_y"),
-        st.sidebar.number_input("试探磁铁 Z坐标/m", value=0.0, format="%.4f", key="test_z")
+        st.sidebar.number_input("试探磁铁 X坐标/m", value=float(st.session_state["test_magnet_x"]), format="%.4f", key="test_x"),
+        st.sidebar.number_input("试探磁铁 Y坐标/m", value=float(st.session_state["test_magnet_y"]), format="%.4f", key="test_y"),
+        st.sidebar.number_input("试探磁铁 Z坐标/m", value=float(st.session_state["test_magnet_z"]), format="%.4f", key="test_z")
     ]
+
+# 保存试探磁铁位置到 session_state
+st.session_state["test_magnet_x"] = test_magnet_pos[0]
+st.session_state["test_magnet_y"] = test_magnet_pos[1]
+st.session_state["test_magnet_z"] = test_magnet_pos[2]
 
 # 试探磁铁磁矩大小（等效电压）
 test_magnet_U = st.sidebar.number_input("试探磁铁 等效输入电压/mV", value=29.4, format="%.1f", key="test_U")
@@ -575,7 +583,7 @@ with st.spinner("正在计算..."):
                 
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>位置:</b> ({test_magnet_pos[0]:.4f}, {test_magnet_pos[1]:.4f}, {test_magnet_pos[2]:.4f}) m</p>", unsafe_allow_html=True)
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>磁矩:</b> {test_magnet_Pm:.6f} A·m²</p>", unsafe_allow_html=True)
-                st.markdown(f"<p style='font-size:12px; margin:2px 0;'>({test_magnet_dir_norm[0]:.3f}, {test_magnet_dir_norm[1]:.3f}, {test_magnet_dir_norm[2]:.3f})</p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>方向:</b> ({test_magnet_dir_norm[0]:.3f}, {test_magnet_dir_norm[1]:.3f}, {test_magnet_dir_norm[2]:.3f})</p>", unsafe_allow_html=True)
                 
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>B:</b> ({B_c[0]:.3e}, {B_c[1]:.3e}, {B_c[2]:.3e}) T</p>", unsafe_allow_html=True)
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>|B|:</b> {np.linalg.norm(B_c):.3e} T</p>", unsafe_allow_html=True)
