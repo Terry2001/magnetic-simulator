@@ -11,35 +11,8 @@ from io import BytesIO
 plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
-# x = float(input("x="))
-# y = float(input("y="))
-# z = float(input("z="))
-# a = float(input("a="))
-# b = float(input("b="))
-# c = float(input("c="))
-# M = float(input("M="))
-# V = a * b * c
-# Pm = M * V
+
 u = constants.mu_0
-# Pm = 0.5695312497
-
-
-
-def Bx(x, y, z, Pm):
-    Bx = 3 * u * Pm * z * x / (4 * constants.pi * (x ** 2 + y ** 2 + z ** 2) ** 2.5)
-    return Bx
-
-
-def By(x, y, z, Pm):
-    By = 3 * u * Pm * z * y / (4 * constants.pi * (x ** 2 + y ** 2 + z ** 2) ** 2.5)
-    return By
-
-
-def Bz(x, y, z, Pm):
-    Bz = u * Pm * (2 * z ** 2 - x ** 2 - y ** 2) / (4 * constants.pi * (x ** 2 + y ** 2 + z ** 2) ** 2.5)
-    return Bz
-
-
 
 # Streamlit 界面设置
 st.set_page_config(layout="wide")
@@ -95,26 +68,20 @@ for i in range(num_magnets):
     U_default = default_U[i] if i < len(default_U) else 29.4
     vector_default = default_vectors[i] if i < len(default_vectors) else [0.0, 1.0, 0.0]
 
-    # 根据是否启用拖动模式选择输入方式
+    # 根据是否启用拖动模式选择输入方式（key绑定到session_state）
     if enable_drag:
         # 拖动模式：使用滑块
-        coord = [
-            st.sidebar.slider(f"X坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state[f"magnet_{i}_x"]), step=0.001, format="%.3f", key=f"coord_x_{i}"),
-            st.sidebar.slider(f"Y坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state[f"magnet_{i}_y"]), step=0.001, format="%.3f", key=f"coord_y_{i}"),
-            st.sidebar.slider(f"Z坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state[f"magnet_{i}_z"]), step=0.001, format="%.3f", key=f"coord_z_{i}")
-        ]
+        st.sidebar.slider(f"X坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state[f"magnet_{i}_x"]), step=0.001, format="%.3f", key=f"magnet_{i}_x")
+        st.sidebar.slider(f"Y坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state[f"magnet_{i}_y"]), step=0.001, format="%.3f", key=f"magnet_{i}_y")
+        st.sidebar.slider(f"Z坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state[f"magnet_{i}_z"]), step=0.001, format="%.3f", key=f"magnet_{i}_z")
     else:
         # 默认模式：使用输入框
-        coord = [
-            st.sidebar.number_input(f"X坐标/m", value=float(st.session_state[f"magnet_{i}_x"]), format="%.4f", key=f"coord_x_{i}"),
-            st.sidebar.number_input(f"Y坐标/m", value=float(st.session_state[f"magnet_{i}_y"]), format="%.4f", key=f"coord_y_{i}"),
-            st.sidebar.number_input(f"Z坐标/m", value=float(st.session_state[f"magnet_{i}_z"]), format="%.4f", key=f"coord_z_{i}")
-        ]
+        st.sidebar.number_input(f"X坐标/m", value=float(st.session_state[f"magnet_{i}_x"]), format="%.4f", key=f"magnet_{i}_x")
+        st.sidebar.number_input(f"Y坐标/m", value=float(st.session_state[f"magnet_{i}_y"]), format="%.4f", key=f"magnet_{i}_y")
+        st.sidebar.number_input(f"Z坐标/m", value=float(st.session_state[f"magnet_{i}_z"]), format="%.4f", key=f"magnet_{i}_z")
 
-    # 保存当前坐标到 session_state
-    st.session_state[f"magnet_{i}_x"] = coord[0]
-    st.session_state[f"magnet_{i}_y"] = coord[1]
-    st.session_state[f"magnet_{i}_z"] = coord[2]
+    # 从 session_state 读取当前坐标
+    coord = [st.session_state[f"magnet_{i}_x"], st.session_state[f"magnet_{i}_y"], st.session_state[f"magnet_{i}_z"]]
 
     st.sidebar.markdown(f"**磁铁{i + 1}强度（默认为钕磁铁）**")
     U_input = st.sidebar.number_input(f"磁铁{i + 1} 等效输入电压/mV", value=U_default, format="%.1f", key=f"U_{i}")
@@ -142,62 +109,79 @@ def Bz_vec(x, y, z, Pm):
     return u * Pm * (2 * z**2 - x**2 - y**2) / (4 * constants.pi * r2**2.5)
 
 def compute_magnetic_field_batch(points, magnets):
-    """
-    批量计算磁场，使用向量化操作
-    points: (N, 3) 数组
-    magnets: 磁铁列表
-    """
+    """批量计算磁场，使用向量化操作"""
     N = points.shape[0]
     total_field = np.zeros((N, 3))
-    
+
     for magnet in magnets:
         cm = np.array(magnet["coord"])
         v_a = np.array(magnet["vector"])
         Pm = magnet["Pm"]
-        
-        # 批量计算向量 m
-        m = points - cm  # (N, 3)
-        
-        # 点到磁铁中心的距离
-        dis = np.linalg.norm(m, axis=1)  # (N,)
-        
-        # 叉乘模长 (点到直线距离)
-        cross_prod = np.cross(m, v_a)  # (N, 3)
-        mol_mul_cross = np.linalg.norm(cross_prod, axis=1)  # (N,)
         mol_v_a = np.linalg.norm(v_a)
-        d_dot_line = mol_mul_cross / mol_v_a  # (N,)
-        
-        # 投影距离 h
-        h = np.sqrt(np.maximum(dis**2 - d_dot_line**2, 0))  # (N,)
-        
-        # 点积和符号
-        dp = np.dot(m, v_a)  # (N,)
+        if mol_v_a == 0:
+            continue
+
+        m = points - cm
+        dis = np.linalg.norm(m, axis=1)
+
+        # 点到直线距离
+        cross_prod = np.cross(m, v_a)
+        d_dot_line = np.linalg.norm(cross_prod, axis=1) / mol_v_a
+        h = np.sqrt(np.maximum(dis**2 - d_dot_line**2, 0))
+
+        # 符号
+        dp = np.dot(m, v_a)
         plmi = np.sign(dp)
         plmi[dp == 0] = 1
-        
-        # 单位向量 unit_x (垂直于磁铁方向)
+
+        # 单位向量 unit_x
         tp = dp / (mol_v_a ** 2)
         shadow = cm + np.outer(tp, v_a)
         dis_x = points - shadow
         norm_x = np.linalg.norm(dis_x, axis=1)
-        norm_x[norm_x == 0] = 1  # 避免除零
+        norm_x[norm_x == 0] = 1
         unit_x = dis_x / norm_x[:, np.newaxis]
-        
-        # 单位向量 unit_h (沿磁铁方向)
-        unit_h = v_a / mol_v_a if mol_v_a > 0 else np.zeros(3)
-        
-        # 计算磁场分量
+
+        # 单位向量 unit_h
+        unit_h = v_a / mol_v_a
+
+        # 计算并累加磁场
         Bx_vals = Bx_vec(d_dot_line, np.zeros(N), h * plmi, Pm)
         Bz_vals = Bz_vec(d_dot_line, np.zeros(N), h, Pm)
-        
-        # 累加贡献
-        total_field += unit_x * Bx_vals[:, np.newaxis]
-        total_field += unit_h * Bz_vals[:, np.newaxis]
-    
+        total_field += unit_x * Bx_vals[:, np.newaxis] + unit_h * Bz_vals[:, np.newaxis]
+
     return total_field
 
-# print(mag(coordinate_dot, coordinate_mag, v, Pm))
-# 1. 创建随机均匀采样点（在指定高度Z的XY平面上）
+
+def compute_force_torque(pos, m, magnets, h_diff=0.0001):
+    """计算试探磁铁的受力和力矩"""
+    # 中心点磁场
+    B_center = compute_magnetic_field_batch(pos.reshape(1, -1), magnets)[0]
+
+    # X方向梯度
+    B_xp = compute_magnetic_field_batch((pos + [h_diff, 0, 0]).reshape(1, -1), magnets)[0]
+    B_xm = compute_magnetic_field_batch((pos - [h_diff, 0, 0]).reshape(1, -1), magnets)[0]
+    dB_dx = (B_xp - B_xm) / (2 * h_diff)
+
+    # Y方向梯度
+    B_yp = compute_magnetic_field_batch((pos + [0, h_diff, 0]).reshape(1, -1), magnets)[0]
+    B_ym = compute_magnetic_field_batch((pos - [0, h_diff, 0]).reshape(1, -1), magnets)[0]
+    dB_dy = (B_yp - B_ym) / (2 * h_diff)
+
+    # Z方向梯度
+    B_zp = compute_magnetic_field_batch((pos + [0, 0, h_diff]).reshape(1, -1), magnets)[0]
+    B_zm = compute_magnetic_field_batch((pos - [0, 0, h_diff]).reshape(1, -1), magnets)[0]
+    dB_dz = (B_zp - B_zm) / (2 * h_diff)
+
+    # 受力 F = ∇(m·B)
+    F = np.array([np.dot(m, dB_dx), np.dot(m, dB_dy), np.dot(m, dB_dz)])
+
+    # 力矩 τ = m × B
+    torque = np.cross(m, B_center)
+
+    return F, torque, B_center
+
+# 创建随机均匀采样点（在指定高度Z的XY平面上）
 np.random.seed(42)  # 固定随机种子，保证结果可复现
 # num_points 和 z_height 由用户在侧边栏设置
 x_range = (-0.1, 0.1)
@@ -260,7 +244,8 @@ uniform_arrow_length = 0.003
 U_scaled = U_array * uniform_arrow_length
 V_scaled = V_array * uniform_arrow_length
 
-# ==================== 试探磁铁受力设置（必须在运行按钮之前）====================
+
+# ==================== 试探磁铁受力设置 ====================
 st.sidebar.markdown("---")
 st.sidebar.header("试探磁铁设置")
 
@@ -273,24 +258,18 @@ for axis, default_val in [('x', 0.05), ('y', 0.0), ('z', 0.0)]:
     if key not in st.session_state:
         st.session_state[key] = default_val
 
-# 试探磁铁位置（根据是否启用拖动模式选择输入方式）
+# 试探磁铁位置（根据是否启用拖动模式选择输入方式，key绑定到session_state）
 if enable_drag:
-    test_magnet_pos = [
-        st.sidebar.slider("试探磁铁 X坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_x"]), step=0.001, format="%.3f", key="test_x"),
-        st.sidebar.slider("试探磁铁 Y坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_y"]), step=0.001, format="%.3f", key="test_y"),
-        st.sidebar.slider("试探磁铁 Z坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_z"]), step=0.001, format="%.3f", key="test_z")
-    ]
+    st.sidebar.slider("试探磁铁 X坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_x"]), step=0.001, format="%.3f", key="test_magnet_x")
+    st.sidebar.slider("试探磁铁 Y坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_y"]), step=0.001, format="%.3f", key="test_magnet_y")
+    st.sidebar.slider("试探磁铁 Z坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_z"]), step=0.001, format="%.3f", key="test_magnet_z")
 else:
-    test_magnet_pos = [
-        st.sidebar.number_input("试探磁铁 X坐标/m", value=float(st.session_state["test_magnet_x"]), format="%.4f", key="test_x"),
-        st.sidebar.number_input("试探磁铁 Y坐标/m", value=float(st.session_state["test_magnet_y"]), format="%.4f", key="test_y"),
-        st.sidebar.number_input("试探磁铁 Z坐标/m", value=float(st.session_state["test_magnet_z"]), format="%.4f", key="test_z")
-    ]
+    st.sidebar.number_input("试探磁铁 X坐标/m", value=float(st.session_state["test_magnet_x"]), format="%.4f", key="test_magnet_x")
+    st.sidebar.number_input("试探磁铁 Y坐标/m", value=float(st.session_state["test_magnet_y"]), format="%.4f", key="test_magnet_y")
+    st.sidebar.number_input("试探磁铁 Z坐标/m", value=float(st.session_state["test_magnet_z"]), format="%.4f", key="test_magnet_z")
 
-# 保存试探磁铁位置到 session_state
-st.session_state["test_magnet_x"] = test_magnet_pos[0]
-st.session_state["test_magnet_y"] = test_magnet_pos[1]
-st.session_state["test_magnet_z"] = test_magnet_pos[2]
+# 从 session_state 读取试探磁铁位置
+test_magnet_pos = [st.session_state["test_magnet_x"], st.session_state["test_magnet_y"], st.session_state["test_magnet_z"]]
 
 # 试探磁铁磁矩大小（等效电压）
 test_magnet_U = st.sidebar.number_input("试探磁铁 等效输入电压/mV", value=29.4, format="%.1f", key="test_U")
@@ -365,38 +344,13 @@ with st.spinner("正在计算..."):
 
         # 如果启用了受力计算，绘制试探磁铁和受力矢量
         if show_force:
-            # 计算受力
-            h_diff = 0.0001  # 0.1mm
+            # 计算受力和力矩
             pos = np.array(test_magnet_pos)
-            
-            # 计算中心点的磁场
-            B_center = compute_magnetic_field_batch(pos.reshape(1, -1), magnets)[0]
-            
-            # 计算梯度（使用差分）
-            pos_x_plus = pos + np.array([h_diff, 0, 0])
-            pos_x_minus = pos - np.array([h_diff, 0, 0])
-            B_x_plus = compute_magnetic_field_batch(pos_x_plus.reshape(1, -1), magnets)[0]
-            B_x_minus = compute_magnetic_field_batch(pos_x_minus.reshape(1, -1), magnets)[0]
-            dB_dx = (B_x_plus - B_x_minus) / (2 * h_diff)
-            
-            pos_y_plus = pos + np.array([0, h_diff, 0])
-            pos_y_minus = pos - np.array([0, h_diff, 0])
-            B_y_plus = compute_magnetic_field_batch(pos_y_plus.reshape(1, -1), magnets)[0]
-            B_y_minus = compute_magnetic_field_batch(pos_y_minus.reshape(1, -1), magnets)[0]
-            dB_dy = (B_y_plus - B_y_minus) / (2 * h_diff)
-            
-            # 磁矩矢量
             m = test_magnet_dir_norm * test_magnet_Pm
-            
-            # 计算受力 F = ∇(m·B)
-            F_x = np.dot(m, dB_dx)
-            F_y = np.dot(m, dB_dy)
-            F = np.array([F_x, F_y])
+            F_3d, torque, B_center = compute_force_torque(pos, m, magnets)
+            F = F_3d[:2]  # XY平面分量
             F_magnitude = np.linalg.norm(F)
-            
-            # 计算力矩 τ = m × B
-            torque = np.cross(m, B_center)
-            torque_xy = np.array([torque[0], torque[1]])  # XY平面分量
+            torque_xy = torque[:2]
             torque_magnitude = np.linalg.norm(torque)
             torque_xy_magnitude = np.linalg.norm(torque_xy)
             
@@ -549,48 +503,22 @@ with st.spinner("正在计算..."):
             if show_force:
                 st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
                 st.markdown("<h4 style='font-size:16px; margin-bottom:8px;'>试探磁铁受力分析</h4>", unsafe_allow_html=True)
-                
+
                 # 计算3D受力和力矩（用于显示）
-                h_disp = 0.0001
                 pos_disp = np.array(test_magnet_pos)
                 m_disp = test_magnet_dir_norm * test_magnet_Pm
-                
-                B_c = compute_magnetic_field_batch(pos_disp.reshape(1, -1), magnets)[0]
-                
-                pos_xp = pos_disp + np.array([h_disp, 0, 0])
-                pos_xm = pos_disp - np.array([h_disp, 0, 0])
-                B_xp = compute_magnetic_field_batch(pos_xp.reshape(1, -1), magnets)[0]
-                B_xm = compute_magnetic_field_batch(pos_xm.reshape(1, -1), magnets)[0]
-                dB_dx_disp = (B_xp - B_xm) / (2 * h_disp)
-                
-                pos_yp = pos_disp + np.array([0, h_disp, 0])
-                pos_ym = pos_disp - np.array([0, h_disp, 0])
-                B_yp = compute_magnetic_field_batch(pos_yp.reshape(1, -1), magnets)[0]
-                B_ym = compute_magnetic_field_batch(pos_ym.reshape(1, -1), magnets)[0]
-                dB_dy_disp = (B_yp - B_ym) / (2 * h_disp)
-                
-                pos_zp = pos_disp + np.array([0, 0, h_disp])
-                pos_zm = pos_disp - np.array([0, 0, h_disp])
-                B_zp = compute_magnetic_field_batch(pos_zp.reshape(1, -1), magnets)[0]
-                B_zm = compute_magnetic_field_batch(pos_zm.reshape(1, -1), magnets)[0]
-                dB_dz_disp = (B_zp - B_zm) / (2 * h_disp)
-                
-                F_x_disp = np.dot(m_disp, dB_dx_disp)
-                F_y_disp = np.dot(m_disp, dB_dy_disp)
-                F_z_disp = np.dot(m_disp, dB_dz_disp)
-                F_disp = np.array([F_x_disp, F_y_disp, F_z_disp])
-                torque_disp = np.cross(m_disp, B_c)
-                
+                F_disp, torque_disp, B_c = compute_force_torque(pos_disp, m_disp, magnets)
+
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>位置:</b> ({test_magnet_pos[0]:.4f}, {test_magnet_pos[1]:.4f}, {test_magnet_pos[2]:.4f}) m</p>", unsafe_allow_html=True)
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>磁矩:</b> {test_magnet_Pm:.6f} A·m²</p>", unsafe_allow_html=True)
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>方向:</b> ({test_magnet_dir_norm[0]:.3f}, {test_magnet_dir_norm[1]:.3f}, {test_magnet_dir_norm[2]:.3f})</p>", unsafe_allow_html=True)
-                
+
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>B:</b> ({B_c[0]:.3e}, {B_c[1]:.3e}, {B_c[2]:.3e}) T</p>", unsafe_allow_html=True)
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>|B|:</b> {np.linalg.norm(B_c):.3e} T</p>", unsafe_allow_html=True)
-                
-                st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>F:</b> ({F_x_disp:.3e}, {F_y_disp:.3e}, {F_z_disp:.3e}) N</p>", unsafe_allow_html=True)
+
+                st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>F:</b> ({F_disp[0]:.3e}, {F_disp[1]:.3e}, {F_disp[2]:.3e}) N</p>", unsafe_allow_html=True)
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>|F|:</b> {np.linalg.norm(F_disp):.3e} N</p>", unsafe_allow_html=True)
-                
+
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>τ:</b> ({torque_disp[0]:.3e}, {torque_disp[1]:.3e}, {torque_disp[2]:.3e}) N·m</p>", unsafe_allow_html=True)
                 st.markdown(f"<p style='font-size:12px; margin:2px 0;'><b>|τ|:</b> {np.linalg.norm(torque_disp):.3e} N·m</p>", unsafe_allow_html=True)
             else:
