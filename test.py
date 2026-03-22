@@ -443,11 +443,11 @@ if simulation_mode != "动态":
     
     # 试探磁铁位置（根据是否启用拖动模式选择输入方式，key 绑定到 session_state）
     if enable_drag:
-        st.sidebar.slider("试探磁铁 X 坐标/m", min_value=-0.1, max_value=0.1, step=0.001, format="%.3f",
+        st.sidebar.slider("试探磁铁 X 坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_x"]), step=0.001, format="%.3f",
                           key="test_magnet_x")
-        st.sidebar.slider("试探磁铁 Y 坐标/m", min_value=-0.1, max_value=0.1, step=0.001, format="%.3f",
+        st.sidebar.slider("试探磁铁 Y 坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_y"]), step=0.001, format="%.3f",
                           key="test_magnet_y")
-        st.sidebar.slider("试探磁铁 Z 坐标/m", min_value=-0.1, max_value=0.1, step=0.001, format="%.3f",
+        st.sidebar.slider("试探磁铁 Z 坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_z"]), step=0.001, format="%.3f",
                           key="test_magnet_z")
     else:
         st.sidebar.number_input("试探磁铁 X 坐标/m", value=float(st.session_state["test_magnet_x"]), format="%.4f", key="test_magnet_x")
