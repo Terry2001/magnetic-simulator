@@ -87,8 +87,8 @@ for i in range(num_magnets):
     if simulation_mode == "动态" and i == 0:
         st.sidebar.subheader(f"磁铁 {i + 1}")
         
-        # 默认电压（29.4V 对应原 Pm = 0.5695312497）
-        default_U = [29.4, 29.4, 29.4, 29.4, 29.4, 29.4, 29.4, 29.4, 29.4, 29.4]
+        # 默认电压（35.3V 对应原 Pm = 0.5695312497）
+        default_U = [35.3, 35.3, 35.3, 35.3, 35.3, 35.3, 35.3, 35.3, 35.3, 35.3]
         
         # 默认方向向量（全部向右，即 X 轴正方向）
         default_vectors = [
@@ -104,7 +104,7 @@ for i in range(num_magnets):
             [1.0, 0.0, 0.0]
         ]
         
-        U_default = default_U[i] if i < len(default_U) else 29.4
+        U_default = default_U[i] if i < len(default_U) else 35.3
         vector_default = default_vectors[i] if i < len(default_vectors) else [0.0, 1.0, 0.0]
         
         # 动态模式下的磁铁 1：使用占位值，实际位置在动画中计算
@@ -120,14 +120,14 @@ for i in range(num_magnets):
             st.sidebar.number_input(f"Z", value=vector_default[2], format="%.1f", key=f"vec_z_{i}")
         ]
         
-        magnets.append({"coord": coord, "Pm": U_input * 1.9527 / 100.8, "vector": v})
+        magnets.append({"coord": coord, "Pm": U_input * 0.0232596068189, "vector": v})
         continue
     
     # 其他磁铁（磁铁 2 及以后）的输入
     st.sidebar.subheader(f"磁铁 {i + 1}")
 
     # 默认参数
-    U_default = 29.4
+    U_default = 35.3
     vector_default = [1.0, 0.0, 0.0]
 
     # 根据是否启用拖动模式选择输入方式（key 绑定到 session_state）
@@ -158,7 +158,7 @@ for i in range(num_magnets):
         st.sidebar.number_input(f"Z", value=vector_default[2], format="%.1f", key=f"vec_z_{i}")
     ]
 
-    magnets.append({"coord": coord, "Pm": U_input * 1.9527 / 100.8, "vector": v})
+    magnets.append({"coord": coord, "Pm": U_input * 0.0232596068189, "vector": v})
 
 
 @np.vectorize
@@ -443,11 +443,11 @@ if simulation_mode != "动态":
     
     # 试探磁铁位置（根据是否启用拖动模式选择输入方式，key 绑定到 session_state）
     if enable_drag:
-        st.sidebar.slider("试探磁铁 X 坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_x"]), step=0.001, format="%.3f",
+        st.sidebar.slider("试探磁铁 X 坐标/m", min_value=-0.1, max_value=0.1, step=0.001, format="%.3f",
                           key="test_magnet_x")
-        st.sidebar.slider("试探磁铁 Y 坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_y"]), step=0.001, format="%.3f",
+        st.sidebar.slider("试探磁铁 Y 坐标/m", min_value=-0.1, max_value=0.1, step=0.001, format="%.3f",
                           key="test_magnet_y")
-        st.sidebar.slider("试探磁铁 Z 坐标/m", min_value=-0.1, max_value=0.1, value=float(st.session_state["test_magnet_z"]), step=0.001, format="%.3f",
+        st.sidebar.slider("试探磁铁 Z 坐标/m", min_value=-0.1, max_value=0.1, step=0.001, format="%.3f",
                           key="test_magnet_z")
     else:
         st.sidebar.number_input("试探磁铁 X 坐标/m", value=float(st.session_state["test_magnet_x"]), format="%.4f", key="test_magnet_x")
@@ -458,8 +458,8 @@ if simulation_mode != "动态":
     test_magnet_pos = [st.session_state["test_magnet_x"], st.session_state["test_magnet_y"], st.session_state["test_magnet_z"]]
     
     # 试探磁铁磁矩大小（等效电压）
-    test_magnet_U = st.sidebar.number_input("试探磁铁 等效输入电压/mV", value=29.4, format="%.1f", key="test_U")
-    test_magnet_Pm = test_magnet_U * 1.9527 / 100.8
+    test_magnet_U = st.sidebar.number_input("试探磁铁 等效输入电压/mV", value=35.3, format="%.1f", key="test_U")
+    test_magnet_Pm = test_magnet_U * 0.0232596068189
     
     # 试探磁铁磁矩方向
     test_magnet_dir = [
