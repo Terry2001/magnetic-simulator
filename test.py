@@ -254,7 +254,7 @@ def generate_animation_frames(magnets, start_pos, end_pos, num_frames=150, exclu
     # 预定义颜色映射
     from matplotlib.colors import ListedColormap
     import matplotlib.cm as cm
-    rainbow = cm.get_cmap('rainbow', 256)
+    rainbow = plt.get_cmap('rainbow', 256)
     rainbow_dark = rainbow(np.linspace(0, 1, 256)).copy()
     rainbow_dark[:, :3] *= 0.8
     dark_cmap = ListedColormap(rainbow_dark)
@@ -623,7 +623,7 @@ with st.spinner("正在计算..."):
         import matplotlib.cm as cm
     
         # 获取 rainbow 色图并调整
-        rainbow = cm.get_cmap('rainbow', 256)
+        rainbow = plt.get_cmap('rainbow', 256)
         rainbow_colors = rainbow(np.linspace(0, 1, 256))
         # 降低明度（使颜色更深沉）
         rainbow_dark = rainbow_colors.copy()
